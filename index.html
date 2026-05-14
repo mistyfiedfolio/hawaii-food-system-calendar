@@ -99,22 +99,25 @@ tr:hover td{background:rgba(131,155,79,.04)}
 .ll{color:var(--thfst-dark);text-decoration:none;font-size:11px;border:1px solid rgba(131,155,79,.4);padding:2px 7px;border-radius:3px;white-space:nowrap;transition:background .12s}
 .ll:hover{background:var(--thfst-light)}
 .noresult td{text-align:center;padding:40px;font-style:italic;color:var(--text-muted);font-family:'Libre Baskerville',serif}
-.overlay{position:fixed;inset:0;background:rgba(30,18,8,.35);z-index:50;opacity:0;pointer-events:none;transition:opacity .2s}
-.overlay.on{opacity:1;pointer-events:all}
-.dp{position:fixed;top:0;right:0;width:340px;height:100vh;background:var(--warm);border-left:1px solid var(--border-mid);z-index:51;transform:translateX(100%);transition:transform .22s ease;overflow-y:auto;display:flex;flex-direction:column}
-.dp.on{transform:translateX(0)}
-.dphdr{padding:18px 16px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--warm);z-index:1}
-.dcls{position:absolute;top:12px;right:12px;width:26px;height:26px;border:1px solid var(--border-mid);border-radius:50%;background:none;cursor:pointer;font-size:13px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:background .12s}
-.dcls:hover{background:var(--thfst-faint);color:var(--thfst-dark)}
-.dbadge{display:inline-block;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;margin-bottom:8px}
-.dtitle{font-family:'Libre Baskerville',serif;font-size:16px;font-weight:400;line-height:1.3;color:var(--text);padding-right:30px;margin-bottom:3px}
-.dorg{font-size:12px;color:var(--text-muted)}
-.dbody{padding:14px 16px}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(30,18,8,.45);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px}
+.modal-overlay.on{opacity:1;pointer-events:all}
+.modal{background:var(--warm);border-radius:10px;width:100%;max-width:480px;max-height:82vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.22);transform:translateY(10px);transition:transform .22s;position:relative}
+.modal-overlay.on .modal{transform:translateY(0)}
+.modal-hdr{padding:20px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--warm);z-index:1;border-radius:10px 10px 0 0}
+.modal-cls{position:absolute;top:14px;right:14px;width:28px;height:28px;border:1px solid var(--border-mid);border-radius:50%;background:none;cursor:pointer;font-size:13px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:background .12s}
+.modal-cls:hover{background:var(--thfst-faint);color:var(--thfst-dark)}
+.modal-badge{display:inline-block;font-size:9.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;margin-bottom:8px}
+.modal-title{font-family:'Libre Baskerville',serif;font-size:17px;font-weight:400;line-height:1.3;color:var(--text);padding-right:32px;margin-bottom:3px}
+.modal-org{font-size:12px;color:var(--text-muted)}
+.modal-body{padding:16px 20px}
 .df{margin-bottom:12px}
 .dl{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px}
 .dv{font-size:14px;color:var(--text-mid);line-height:1.5}
-.dcta{display:inline-block;margin-top:14px;padding:9px 16px;background:var(--thfst);color:#fff;border-radius:5px;font-size:14px;text-decoration:none;font-family:'DM Sans',sans-serif;transition:background .12s}
+.dcta{display:inline-block;margin-top:14px;padding:10px 18px;background:var(--thfst);color:#fff;border-radius:5px;font-size:14px;text-decoration:none;font-family:'DM Sans',sans-serif;transition:background .12s}
 .dcta:hover{background:var(--thfst-dark)}
+
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(131,155,79,.2);border-radius:10px}
@@ -184,16 +187,20 @@ tr:hover td{background:rgba(131,155,79,.04)}
     </div>
   </div>
 </div>
-<div class="overlay" id="ov" onclick="closeD()"></div>
-<div class="dp" id="dp">
-  <div class="dphdr">
-    <button class="dcls" onclick="closeD()">✕</button>
-    <div class="dbadge" id="db"></div>
-    <div class="dtitle" id="dn"></div>
-    <div class="dorg" id="dorg"></div>
+
+<!-- MODAL POPUP -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-hdr">
+      <button class="modal-cls" onclick="closeModal()">✕</button>
+      <div class="modal-badge" id="m-badge"></div>
+      <div class="modal-title" id="m-title"></div>
+      <div class="modal-org" id="m-org"></div>
+    </div>
+    <div class="modal-body" id="m-body"></div>
   </div>
-  <div class="dbody" id="dbody"></div>
 </div>
+
 <script>
 const CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vTStJpjd0sD3Jhr5kFTwQa-oO37ZjVVQb5AGj7ZJbUfWfuv67nmwo09J7SspKCBZ7sTQFz_j6OtfvSJ/pub?gid=0&single=true&output=csv';
 const C={org:0,event:1,start:2,end:3,focus:4,type:5,format:6,island:7,info:8,link:9};
@@ -209,17 +216,12 @@ const FC={
 };
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const YR=2026,YS=new Date(2026,0,1),TD=365;
-const today=new Date();
-const todayOff=(today-YS)/86400000;
+const today=new Date(),todayOff=(today-YS)/86400000;
 let ALL=[],aF={focus:new Set(),island:new Set(),type:new Set(),format:new Set()};
 let sCol='start',sDir=1,curTab='gantt';
 
 async function loadData(){
-  const targets=[
-    CSV_URL,
-    'https://api.allorigins.win/raw?url='+encodeURIComponent(CSV_URL),
-    'https://corsproxy.io/?'+encodeURIComponent(CSV_URL)
-  ];
+  const targets=[CSV_URL,'https://api.allorigins.win/raw?url='+encodeURIComponent(CSV_URL),'https://corsproxy.io/?'+encodeURIComponent(CSV_URL)];
   let text=null;
   for(const url of targets){try{const r=await fetch(url,{cache:'no-store'});if(r.ok){text=await r.text();break;}}catch(e){}}
   if(!text){const s=document.getElementById('status');s.textContent='Unable to load calendar data. Please check your internet connection and try refreshing.';s.classList.add('err');return;}
@@ -251,8 +253,8 @@ function splitLine(line){const cells=[];let cur='',inQ=false;for(let i=0;i<line.
 function normDate(s){s=s.trim();const mdy=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(mdy)return`${mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return'';}
 function dOff(s){return Math.max(0,(new Date(s+'T00:00:00')-YS)/86400000)}
 function pct(d){return(d/TD*100).toFixed(3)+'%'}
-function fmtS(s){if(!s)return'';const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
-function fmtL(s){if(!s)return'';const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
+function fmtS(s){if(!s)return'';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function fmtL(s){if(!s)return'';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
 function isPast(ev){return new Date(ev.end+'T00:00:00')<today;}
 
 function buildFilters(){
@@ -329,7 +331,7 @@ function renderGantt(visible){
       const bar=document.createElement('div');bar.className='ebar'+(isPast(ev)?' past-event':'');
       bar.style.cssText=`left:${pct(s)};width:${pct(w)};top:${9+slot*30}px;background:${fc.bg};color:${fc.tx};`;
       if(w>2)bar.textContent=ev.event;bar.title=ev.event;
-      bar.onclick=e=>{e.stopPropagation();openD(ev);};
+      bar.onclick=e=>{e.stopPropagation();openModal(ev);};
       track.appendChild(bar);
     });
     track.style.minHeight=Math.max(44,44+(slots.length-1)*30)+'px';
@@ -355,7 +357,7 @@ function renderList(){
     const fc=FC[ev.focus]||{bg:'#D8E8D4',tx:'#1A3D1A'};
     const ds=fmtS(ev.start)+(ev.end&&ev.end!==ev.start?' – '+fmtS(ev.end):'');
     const lk=ev.link?`<a class="ll" href="${ev.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Visit ↗</a>`:`<span style="color:var(--text-muted);font-size:11px">—</span>`;
-    return`<tr style="cursor:pointer;${isPast(ev)?'opacity:.55':''}" onclick="openD(ALL[${ALL.indexOf(ev)}])">
+    return`<tr style="cursor:pointer;${isPast(ev)?'opacity:.55':''}" onclick="openModal(ALL[${ALL.indexOf(ev)}])">
       <td style="white-space:nowrap">${ds}</td>
       <td>${ev.org}</td>
       <td style="font-weight:500;color:var(--text)">${ev.event}</td>
@@ -366,11 +368,12 @@ function renderList(){
   }).join('');
 }
 
-function openD(ev){
+function openModal(ev){
   const fc=FC[ev.focus]||{bg:'#D8E8D4',tx:'#1A3D1A'};
-  const b=document.getElementById('db');b.textContent=ev.focus;b.style.background=fc.bg;b.style.color=fc.tx;
-  document.getElementById('dn').textContent=ev.event;
-  document.getElementById('dorg').textContent=ev.org;
+  const b=document.getElementById('m-badge');
+  b.textContent=ev.focus;b.style.background=fc.bg;b.style.color=fc.tx;
+  document.getElementById('m-title').textContent=ev.event;
+  document.getElementById('m-org').textContent=ev.org;
   const s=new Date(ev.start+'T00:00:00'),e=new Date(ev.end+'T00:00:00');
   const dur=Math.round((e-s)/86400000)+1;
   let html=`
@@ -381,11 +384,11 @@ function openD(ev){
     <div class="df"><div class="dl">Format</div><div class="dv">${ev.format}</div></div>`;
   if(ev.info)html+=`<div class="df"><div class="dl">About</div><div class="dv">${ev.info}</div></div>`;
   if(ev.link)html+=`<a class="dcta" href="${ev.link}" target="_blank" rel="noopener">More info &amp; RSVP ↗</a>`;
-  document.getElementById('dbody').innerHTML=html;
-  document.getElementById('dp').classList.add('on');
-  document.getElementById('ov').classList.add('on');
+  document.getElementById('m-body').innerHTML=html;
+  document.getElementById('modal-overlay').classList.add('on');
 }
-function closeD(){document.getElementById('dp').classList.remove('on');document.getElementById('ov').classList.remove('on');}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('on');}
+function handleOverlayClick(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
 
 function switchTab(tab,btn){
   curTab=tab;
