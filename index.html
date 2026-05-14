@@ -193,7 +193,7 @@ tr:hover td{background:rgba(131,155,79,.04)}
   <div class="modal" id="modal">
     <div class="modal-hdr">
       <button class="modal-cls" onclick="closeModal()">✕</button>
-      <div class="modal-badge" id="m-badge"></div>
+      <div id="m-badges" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
       <div class="modal-title" id="m-title"></div>
       <div class="modal-org" id="m-org"></div>
     </div>
@@ -244,11 +244,12 @@ function parseCSV(text){
     const start=normDate(row[C.start]||'');
     const end=normDate(row[C.end]||'')||start;
     if(!start)continue;
-    events.push({org,event:clean(row[C.event]),start,end,focus:clean(row[C.focus]),type:clean(row[C.type]),format:clean(row[C.format]),island:clean(row[C.island]),info:clean(row[C.info]),link:clean(row[C.link])});
+    events.push({org,event:clean(row[C.event]),start,end,focus:splitVals(row[C.focus]),type:splitVals(row[C.type]),format:clean(row[C.format]),island:clean(row[C.island]),info:clean(row[C.info]),link:clean(row[C.link])});
   }
   return events;
 }
 function clean(s){return s?s.trim().replace(/^"|"$/g,'').trim():'';}
+function splitVals(s){const c=clean(s);if(!c)return[];return c.split(',').map(v=>v.trim()).filter(Boolean);}
 function splitLine(line){const cells=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else{inQ=!inQ;}}else if(c===','&&!inQ){cells.push(cur);cur='';}else{cur+=c;}}cells.push(cur);return cells.map(s=>s.trim().replace(/^"|"$/g,''));}
 function normDate(s){s=s.trim();const mdy=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(mdy)return`${mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return'';}
 function dOff(s){return Math.max(0,(new Date(s+'T00:00:00')-YS)/86400000)}
@@ -265,8 +266,10 @@ function buildFilters(){
 }
 function mkG(id,key,dotFn){
   const c=document.getElementById(id);const lbl=c.querySelector('.fg-lbl').cloneNode(true);c.innerHTML='';c.appendChild(lbl);
-  [...new Set(ALL.map(e=>e[key]).filter(Boolean))].sort().forEach(v=>{
-    const n=ALL.filter(e=>e[key]===v).length;
+  const isArr=key==='focus'||key==='type';
+  const allVals=isArr?[...new Set(ALL.flatMap(e=>e[key]).filter(Boolean))].sort():[...new Set(ALL.map(e=>e[key]).filter(Boolean))].sort();
+  allVals.forEach(v=>{
+    const n=isArr?ALL.filter(e=>e[key].includes(v)).length:ALL.filter(e=>e[key]===v).length;
     const ch=document.createElement('div');ch.className='chip';
     ch.innerHTML=`<span class="cdot" style="background:${dotFn(v)}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span><span class="cn">${n}</span>`;
     ch.onclick=()=>{aF[key].has(v)?aF[key].delete(v):aF[key].add(v);ch.classList.toggle('on');render();};
@@ -275,9 +278,9 @@ function mkG(id,key,dotFn){
 }
 function clearF(){Object.keys(aF).forEach(k=>aF[k].clear());document.querySelectorAll('.chip.on').forEach(c=>c.classList.remove('on'));render();}
 function vis(ev){
-  if(aF.focus.size&&!aF.focus.has(ev.focus))return false;
+  if(aF.focus.size&&!ev.focus.some(v=>aF.focus.has(v)))return false;
   if(aF.island.size&&!aF.island.has(ev.island))return false;
-  if(aF.type.size&&!aF.type.has(ev.type))return false;
+  if(aF.type.size&&!ev.type.some(v=>aF.type.has(v)))return false;
   if(aF.format.size&&!aF.format.has(ev.format))return false;
   return true;
 }
@@ -292,7 +295,7 @@ function render(){
 }
 
 function renderLegend(v){
-  const shown=[...new Set(v.map(e=>e.focus).filter(Boolean))];
+  const shown=[...new Set(v.flatMap(e=>e.focus).filter(Boolean))];
   document.getElementById('hdr-legend').innerHTML=shown.map(f=>{const fc=FC[f]||{dot:'#839B4F'};return`<div class="hli"><span class="hls" style="background:${fc.dot}"></span>${f}</div>`;}).join('');
 }
 
@@ -327,7 +330,7 @@ function renderGantt(visible){
     evs.forEach(ev=>{
       const s=Math.max(0,dOff(ev.start)),e=Math.min(TD,dOff(ev.end)+1),w=Math.max(0.5,e-s);
       let slot=0;while(slots[slot]!==undefined&&slots[slot]>s+0.5)slot++;slots[slot]=e;
-      const fc=FC[ev.focus]||{bg:'#D8E8D4',tx:'#1A3D1A'};
+      const fc=FC[ev.focus[0]]||{bg:'#D8E8D4',tx:'#1A3D1A'};
       const bar=document.createElement('div');bar.className='ebar'+(isPast(ev)?' past-event':'');
       bar.style.cssText=`left:${pct(s)};width:${pct(w)};top:${9+slot*30}px;background:${fc.bg};color:${fc.tx};`;
       if(w>2)bar.textContent=ev.event;bar.title=ev.event;
@@ -348,20 +351,20 @@ function srt(col){
 function renderList(){
   const q=(document.getElementById('lsi')?.value||'').toLowerCase();
   const upcomingOnly=document.getElementById('upcoming-toggle').checked;
-  let v=ALL.filter(vis).filter(ev=>!q||ev.org.toLowerCase().includes(q)||ev.event.toLowerCase().includes(q)||ev.focus.toLowerCase().includes(q)||ev.island.toLowerCase().includes(q)||ev.type.toLowerCase().includes(q));
+  let v=ALL.filter(vis).filter(ev=>!q||ev.org.toLowerCase().includes(q)||ev.event.toLowerCase().includes(q)||ev.focus.join(' ').toLowerCase().includes(q)||ev.island.toLowerCase().includes(q)||ev.type.join(' ').toLowerCase().includes(q));
   if(upcomingOnly)v=v.filter(ev=>!isPast(ev));
-  v.sort((a,b)=>{const ai=PINNED.indexOf(a.org),bi=PINNED.indexOf(b.org);if(ai!==-1&&bi!==-1)return ai-bi;if(ai!==-1)return -1;if(bi!==-1)return 1;const av=a[sCol]||'',bv=b[sCol]||'';return av<bv?-sDir:av>bv?sDir:0;});
+  v.sort((a,b)=>{const ai=PINNED.indexOf(a.org),bi=PINNED.indexOf(b.org);if(ai!==-1&&bi!==-1)return ai-bi;if(ai!==-1)return -1;if(bi!==-1)return 1;const av=(sCol==='focus'?a.focus[0]:sCol==='type'?a.type[0]:a[sCol])||'',bv=(sCol==='focus'?b.focus[0]:sCol==='type'?b.type[0]:b[sCol])||'';return av<bv?-sDir:av>bv?sDir:0;});
   const tb=document.getElementById('ltb');if(!tb)return;
   if(!v.length){tb.innerHTML='<tr class="noresult"><td colspan="6">No events match your filters or search.</td></tr>';return;}
   tb.innerHTML=v.map(ev=>{
-    const fc=FC[ev.focus]||{bg:'#D8E8D4',tx:'#1A3D1A'};
+    const focusBadges=ev.focus.map(f=>{const fc=FC[f]||{bg:'#D8E8D4',tx:'#1A3D1A'};return`<span class="fb" style="background:${fc.bg};color:${fc.tx};margin-right:3px">${f}</span>`;}).join('');
     const ds=fmtS(ev.start)+(ev.end&&ev.end!==ev.start?' – '+fmtS(ev.end):'');
     const lk=ev.link?`<a class="ll" href="${ev.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Visit ↗</a>`:`<span style="color:var(--text-muted);font-size:11px">—</span>`;
     return`<tr style="cursor:pointer;${isPast(ev)?'opacity:.55':''}" onclick="openModal(ALL[${ALL.indexOf(ev)}])">
       <td style="white-space:nowrap">${ds}</td>
       <td>${ev.org}</td>
       <td style="font-weight:500;color:var(--text)">${ev.event}</td>
-      <td><span class="fb" style="background:${fc.bg};color:${fc.tx}">${ev.focus}</span></td>
+      <td>${focusBadges}</td>
       <td><span class="ib">${ev.island}</span></td>
       <td>${lk}</td>
     </tr>`;
@@ -369,18 +372,18 @@ function renderList(){
 }
 
 function openModal(ev){
-  const fc=FC[ev.focus]||{bg:'#D8E8D4',tx:'#1A3D1A'};
-  const b=document.getElementById('m-badge');
-  b.textContent=ev.focus;b.style.background=fc.bg;b.style.color=fc.tx;
+  const badgesHtml=ev.focus.map(f=>{const fc=FC[f]||{bg:'#D8E8D4',tx:'#1A3D1A'};return`<span class="modal-badge" style="background:${fc.bg};color:${fc.tx}">${f}</span>`;}).join('');
+  document.getElementById('m-badges').innerHTML=badgesHtml;
   document.getElementById('m-title').textContent=ev.event;
   document.getElementById('m-org').textContent=ev.org;
   const s=new Date(ev.start+'T00:00:00'),e=new Date(ev.end+'T00:00:00');
   const dur=Math.round((e-s)/86400000)+1;
+  const typeBadges=ev.type.length?ev.type.map(t=>`<span class="ib" style="margin-right:3px">${t}</span>`).join(''):`<span style="color:var(--text-muted)">—</span>`;
   let html=`
     <div class="df"><div class="dl">Dates</div><div class="dv">${fmtL(ev.start)}${ev.end&&ev.end!==ev.start?' – '+fmtL(ev.end):''}</div></div>
     <div class="df"><div class="dl">Duration</div><div class="dv">${dur<=1?'1 day':dur+' days'}</div></div>
     <div class="df"><div class="dl">Island / Location</div><div class="dv">${ev.island}</div></div>
-    <div class="df"><div class="dl">Event Type</div><div class="dv">${ev.type}</div></div>
+    <div class="df"><div class="dl">Event Type</div><div class="dv">${typeBadges}</div></div>
     <div class="df"><div class="dl">Format</div><div class="dv">${ev.format}</div></div>`;
   if(ev.info)html+=`<div class="df"><div class="dl">About</div><div class="dv">${ev.info}</div></div>`;
   if(ev.link)html+=`<a class="dcta" href="${ev.link}" target="_blank" rel="noopener">More info &amp; RSVP ↗</a>`;
