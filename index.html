@@ -108,7 +108,8 @@ tr:hover td{background:rgba(131,155,79,.04)}
 .modal-hdr{padding:20px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--warm);z-index:1;border-radius:10px 10px 0 0}
 .modal-cls{position:absolute;top:14px;right:14px;width:28px;height:28px;border:1px solid var(--border-mid);border-radius:50%;background:none;cursor:pointer;font-size:13px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;transition:background .12s}
 .modal-cls:hover{background:var(--thfst-faint);color:var(--thfst-dark)}
-.modal-badge{display:inline-block;font-size:9.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;margin-bottom:8px}
+.modal-badges{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.modal-badge{display:inline-block;font-size:9.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px}
 .modal-title{font-family:'Libre Baskerville',serif;font-size:17px;font-weight:400;line-height:1.3;color:var(--text);padding-right:32px;margin-bottom:3px}
 .modal-org{font-size:12px;color:var(--text-muted)}
 .modal-body{padding:16px 20px}
@@ -193,7 +194,7 @@ tr:hover td{background:rgba(131,155,79,.04)}
   <div class="modal" id="modal">
     <div class="modal-hdr">
       <button class="modal-cls" onclick="closeModal()">✕</button>
-      <div id="m-badges" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px"></div>
+      <div class="modal-badges" id="m-badges"></div>
       <div class="modal-title" id="m-title"></div>
       <div class="modal-org" id="m-org"></div>
     </div>
@@ -203,17 +204,24 @@ tr:hover td{background:rgba(131,155,79,.04)}
 
 <script>
 const CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vTStJpjd0sD3Jhr5kFTwQa-oO37ZjVVQb5AGj7ZJbUfWfuv67nmwo09J7SspKCBZ7sTQFz_j6OtfvSJ/pub?gid=0&single=true&output=csv';
-const C={org:0,event:1,start:2,end:3,focus:4,type:5,format:6,island:7,info:8,link:9};
+
+// Updated column map: F is now secondary focus, G=type, H=format, I=island, J=info, K=link
+const C={org:0,event:1,start:2,end:3,focus:4,focus2:5,type:6,format:7,island:8,info:9,link:10};
+
 const PINNED=['State of Hawaiʻi Legislature'];
+
+// Updated color palette — more saturated across the board + new Agriculture + Production
 const FC={
-  'Policy + Planning':                 {bg:'#D4E4EE',tx:'#1A3D52',dot:'#7AAAC0'},
-  'Health + Wellbeing':                {bg:'#EED4D8',tx:'#52181E',dot:'#C07A82'},
-  'Environment + Sustainability':      {bg:'#D8E8D4',tx:'#1A3D1A',dot:'#839B4F'},
-  'Youth Development':                 {bg:'#E0D4EE',tx:'#3D1A52',dot:'#A07AC0'},
-  'Community Building':                {bg:'#EEE0D0',tx:'#523D1A',dot:'#C0A07A'},
-  'Education + Workforce Development': {bg:'#EEE8C4',tx:'#524A00',dot:'#B8A840'},
-  'Food Access':                       {bg:'#D8E8C4',tx:'#2A4010',dot:'#80A840'},
+  'Policy + Planning':                 {bg:'#C2DCF0',tx:'#0F2D45',dot:'#5B9EC9',bar:'#5B9EC9'},
+  'Health + Wellbeing':                {bg:'#F5C4CE',tx:'#6B1020',dot:'#D4607A',bar:'#D4607A'},
+  'Environment + Sustainability':      {bg:'#C0DCA8',tx:'#1E4A08',dot:'#5A8C3A',bar:'#5A8C3A'},
+  'Youth Development':                 {bg:'#D8C8F0',tx:'#3A1A6B',dot:'#7A5CB8',bar:'#7A5CB8'},
+  'Community Building':                {bg:'#F0D8B8',tx:'#5A3000',dot:'#C07A3A',bar:'#C07A3A'},
+  'Education + Workforce Development': {bg:'#F0E498',tx:'#4A3A00',dot:'#A89020',bar:'#A89020'},
+  'Food Access':                       {bg:'#C8E8A0',tx:'#1E4800',dot:'#5A9830',bar:'#5A9830'},
+  'Agriculture + Production':          {bg:'#A8E4D8',tx:'#0A4A3A',dot:'#2A9E8A',bar:'#2A9E8A'},
 };
+
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const YR=2026,YS=new Date(2026,0,1),TD=365;
 const today=new Date(),todayOff=(today-YS)/86400000;
@@ -244,12 +252,23 @@ function parseCSV(text){
     const start=normDate(row[C.start]||'');
     const end=normDate(row[C.end]||'')||start;
     if(!start)continue;
-    events.push({org,event:clean(row[C.event]),start,end,focus:splitVals(row[C.focus]),type:splitVals(row[C.type]),format:clean(row[C.format]),island:clean(row[C.island]),info:clean(row[C.info]),link:clean(row[C.link])});
+    events.push({
+      org,
+      event:clean(row[C.event]),
+      start,end,
+      focus:clean(row[C.focus]),
+      focus2:clean(row[C.focus2]),
+      type:clean(row[C.type]),
+      format:clean(row[C.format]),
+      island:clean(row[C.island]),
+      info:clean(row[C.info]),
+      link:clean(row[C.link])
+    });
   }
   return events;
 }
+
 function clean(s){return s?s.trim().replace(/^"|"$/g,'').trim():'';}
-function splitVals(s){const c=clean(s);if(!c)return[];return c.split(',').map(v=>v.trim()).filter(Boolean);}
 function splitLine(line){const cells=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else{inQ=!inQ;}}else if(c===','&&!inQ){cells.push(cur);cur='';}else{cur+=c;}}cells.push(cur);return cells.map(s=>s.trim().replace(/^"|"$/g,''));}
 function normDate(s){s=s.trim();const mdy=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(mdy)return`${mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return'';}
 function dOff(s){return Math.max(0,(new Date(s+'T00:00:00')-YS)/86400000)}
@@ -258,29 +277,50 @@ function fmtS(s){if(!s)return'';return new Date(s+'T00:00:00').toLocaleDateStrin
 function fmtL(s){if(!s)return'';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
 function isPast(ev){return new Date(ev.end+'T00:00:00')<today;}
 
+// Returns all focus area values for an event (primary always first, secondary only if present)
+function focusAreas(ev){
+  const areas=[ev.focus].filter(Boolean);
+  if(ev.focus2)areas.push(ev.focus2);
+  return areas;
+}
+
+// For filter sidebar: collect all unique focus values across primary AND secondary
 function buildFilters(){
   mkG('fg-focus','focus',v=>(FC[v]||{dot:'#9C8870'}).dot);
   mkG('fg-island','island',()=>'#839B4F');
   mkG('fg-type','type',()=>'#9C8870');
   mkG('fg-format','format',()=>'#9C8870');
 }
+
 function mkG(id,key,dotFn){
   const c=document.getElementById(id);const lbl=c.querySelector('.fg-lbl').cloneNode(true);c.innerHTML='';c.appendChild(lbl);
-  const isArr=key==='focus'||key==='type';
-  const allVals=isArr?[...new Set(ALL.flatMap(e=>e[key]).filter(Boolean))].sort():[...new Set(ALL.map(e=>e[key]).filter(Boolean))].sort();
-  allVals.forEach(v=>{
-    const n=isArr?ALL.filter(e=>e[key].includes(v)).length:ALL.filter(e=>e[key]===v).length;
+  let vals;
+  if(key==='focus'){
+    // Collect unique values from both focus and focus2
+    const all=ALL.flatMap(e=>[e.focus,e.focus2].filter(Boolean));
+    vals=[...new Set(all)].sort();
+  } else {
+    vals=[...new Set(ALL.map(e=>e[key]).filter(Boolean))].sort();
+  }
+  vals.forEach(v=>{
+    // Count: event matches if v is in either focus field
+    const n=key==='focus'
+      ? ALL.filter(e=>e.focus===v||e.focus2===v).length
+      : ALL.filter(e=>e[key]===v).length;
     const ch=document.createElement('div');ch.className='chip';
     ch.innerHTML=`<span class="cdot" style="background:${dotFn(v)}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span><span class="cn">${n}</span>`;
     ch.onclick=()=>{aF[key].has(v)?aF[key].delete(v):aF[key].add(v);ch.classList.toggle('on');render();};
     c.appendChild(ch);
   });
 }
+
 function clearF(){Object.keys(aF).forEach(k=>aF[k].clear());document.querySelectorAll('.chip.on').forEach(c=>c.classList.remove('on'));render();}
+
 function vis(ev){
-  if(aF.focus.size&&!ev.focus.some(v=>aF.focus.has(v)))return false;
+  // Focus filter: match if primary OR secondary focus is in the selected set
+  if(aF.focus.size&&!aF.focus.has(ev.focus)&&!aF.focus.has(ev.focus2))return false;
   if(aF.island.size&&!aF.island.has(ev.island))return false;
-  if(aF.type.size&&!ev.type.some(v=>aF.type.has(v)))return false;
+  if(aF.type.size&&!aF.type.has(ev.type))return false;
   if(aF.format.size&&!aF.format.has(ev.format))return false;
   return true;
 }
@@ -295,7 +335,8 @@ function render(){
 }
 
 function renderLegend(v){
-  const shown=[...new Set(v.flatMap(e=>e.focus).filter(Boolean))];
+  // Show all unique focus areas (primary only) in the legend
+  const shown=[...new Set(v.map(e=>e.focus).filter(Boolean))];
   document.getElementById('hdr-legend').innerHTML=shown.map(f=>{const fc=FC[f]||{dot:'#839B4F'};return`<div class="hli"><span class="hls" style="background:${fc.dot}"></span>${f}</div>`;}).join('');
 }
 
@@ -330,9 +371,11 @@ function renderGantt(visible){
     evs.forEach(ev=>{
       const s=Math.max(0,dOff(ev.start)),e=Math.min(TD,dOff(ev.end)+1),w=Math.max(0.5,e-s);
       let slot=0;while(slots[slot]!==undefined&&slots[slot]>s+0.5)slot++;slots[slot]=e;
-      const fc=FC[ev.focus[0]]||{bg:'#D8E8D4',tx:'#1A3D1A'};
+      // Bar color always uses primary focus area
+      const fc=FC[ev.focus]||{bg:'#C0DCA8',tx:'#1E4A08',bar:'#5A8C3A'};
       const bar=document.createElement('div');bar.className='ebar'+(isPast(ev)?' past-event':'');
-      bar.style.cssText=`left:${pct(s)};width:${pct(w)};top:${9+slot*30}px;background:${fc.bg};color:${fc.tx};`;
+      // Use bar color (saturated) for background, white text for readability
+      bar.style.cssText=`left:${pct(s)};width:${pct(w)};top:${9+slot*30}px;background:${fc.bar};color:#fff;`;
       if(w>2)bar.textContent=ev.event;bar.title=ev.event;
       bar.onclick=e=>{e.stopPropagation();openModal(ev);};
       track.appendChild(bar);
@@ -348,23 +391,27 @@ function srt(col){
   const th=document.getElementById('th-'+col);if(th)th.classList.add('sorted');
   renderList();
 }
+
 function renderList(){
   const q=(document.getElementById('lsi')?.value||'').toLowerCase();
   const upcomingOnly=document.getElementById('upcoming-toggle').checked;
-  let v=ALL.filter(vis).filter(ev=>!q||ev.org.toLowerCase().includes(q)||ev.event.toLowerCase().includes(q)||ev.focus.join(' ').toLowerCase().includes(q)||ev.island.toLowerCase().includes(q)||ev.type.join(' ').toLowerCase().includes(q));
+  let v=ALL.filter(vis).filter(ev=>!q||ev.org.toLowerCase().includes(q)||ev.event.toLowerCase().includes(q)||ev.focus.toLowerCase().includes(q)||(ev.focus2&&ev.focus2.toLowerCase().includes(q))||ev.island.toLowerCase().includes(q)||ev.type.toLowerCase().includes(q));
   if(upcomingOnly)v=v.filter(ev=>!isPast(ev));
-  v.sort((a,b)=>{const ai=PINNED.indexOf(a.org),bi=PINNED.indexOf(b.org);if(ai!==-1&&bi!==-1)return ai-bi;if(ai!==-1)return -1;if(bi!==-1)return 1;const av=(sCol==='focus'?a.focus[0]:sCol==='type'?a.type[0]:a[sCol])||'',bv=(sCol==='focus'?b.focus[0]:sCol==='type'?b.type[0]:b[sCol])||'';return av<bv?-sDir:av>bv?sDir:0;});
+  v.sort((a,b)=>{const ai=PINNED.indexOf(a.org),bi=PINNED.indexOf(b.org);if(ai!==-1&&bi!==-1)return ai-bi;if(ai!==-1)return -1;if(bi!==-1)return 1;const av=a[sCol]||'',bv=b[sCol]||'';return av<bv?-sDir:av>bv?sDir:0;});
   const tb=document.getElementById('ltb');if(!tb)return;
   if(!v.length){tb.innerHTML='<tr class="noresult"><td colspan="6">No events match your filters or search.</td></tr>';return;}
   tb.innerHTML=v.map(ev=>{
-    const focusBadges=ev.focus.map(f=>{const fc=FC[f]||{bg:'#D8E8D4',tx:'#1A3D1A'};return`<span class="fb" style="background:${fc.bg};color:${fc.tx};margin-right:3px">${f}</span>`;}).join('');
+    const fc=FC[ev.focus]||{bg:'#C0DCA8',tx:'#1E4A08'};
+    const fc2=ev.focus2?(FC[ev.focus2]||{bg:'#EDE5D4',tx:'#6B4C35'}):null;
     const ds=fmtS(ev.start)+(ev.end&&ev.end!==ev.start?' – '+fmtS(ev.end):'');
     const lk=ev.link?`<a class="ll" href="${ev.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Visit ↗</a>`:`<span style="color:var(--text-muted);font-size:11px">—</span>`;
+    const badge1=`<span class="fb" style="background:${fc.bg};color:${fc.tx}">${ev.focus}</span>`;
+    const badge2=fc2?` <span class="fb" style="background:${fc2.bg};color:${fc2.tx}">${ev.focus2}</span>`:'';
     return`<tr style="cursor:pointer;${isPast(ev)?'opacity:.55':''}" onclick="openModal(ALL[${ALL.indexOf(ev)}])">
       <td style="white-space:nowrap">${ds}</td>
       <td>${ev.org}</td>
       <td style="font-weight:500;color:var(--text)">${ev.event}</td>
-      <td>${focusBadges}</td>
+      <td>${badge1}${badge2}</td>
       <td><span class="ib">${ev.island}</span></td>
       <td>${lk}</td>
     </tr>`;
@@ -372,24 +419,31 @@ function renderList(){
 }
 
 function openModal(ev){
-  const badgesHtml=ev.focus.map(f=>{const fc=FC[f]||{bg:'#D8E8D4',tx:'#1A3D1A'};return`<span class="modal-badge" style="background:${fc.bg};color:${fc.tx}">${f}</span>`;}).join('');
-  document.getElementById('m-badges').innerHTML=badgesHtml;
+  const fc=FC[ev.focus]||{bg:'#C0DCA8',tx:'#1E4A08'};
+  const fc2=ev.focus2?(FC[ev.focus2]||{bg:'#EDE5D4',tx:'#6B4C35'}):null;
+
+  // Build badges — primary always shown, secondary only if present
+  const badgesEl=document.getElementById('m-badges');
+  let badgesHTML=`<span class="modal-badge" style="background:${fc.bg};color:${fc.tx}">${ev.focus}</span>`;
+  if(fc2){badgesHTML+=`<span class="modal-badge" style="background:${fc2.bg};color:${fc2.tx}">${ev.focus2}</span>`;}
+  badgesEl.innerHTML=badgesHTML;
+
   document.getElementById('m-title').textContent=ev.event;
   document.getElementById('m-org').textContent=ev.org;
   const s=new Date(ev.start+'T00:00:00'),e=new Date(ev.end+'T00:00:00');
   const dur=Math.round((e-s)/86400000)+1;
-  const typeBadges=ev.type.length?ev.type.map(t=>`<span class="ib" style="margin-right:3px">${t}</span>`).join(''):`<span style="color:var(--text-muted)">—</span>`;
   let html=`
     <div class="df"><div class="dl">Dates</div><div class="dv">${fmtL(ev.start)}${ev.end&&ev.end!==ev.start?' – '+fmtL(ev.end):''}</div></div>
     <div class="df"><div class="dl">Duration</div><div class="dv">${dur<=1?'1 day':dur+' days'}</div></div>
     <div class="df"><div class="dl">Island / Location</div><div class="dv">${ev.island}</div></div>
-    <div class="df"><div class="dl">Event Type</div><div class="dv">${typeBadges}</div></div>
+    <div class="df"><div class="dl">Event Type</div><div class="dv">${ev.type}</div></div>
     <div class="df"><div class="dl">Format</div><div class="dv">${ev.format}</div></div>`;
   if(ev.info)html+=`<div class="df"><div class="dl">About</div><div class="dv">${ev.info}</div></div>`;
   if(ev.link)html+=`<a class="dcta" href="${ev.link}" target="_blank" rel="noopener">More info &amp; RSVP ↗</a>`;
   document.getElementById('m-body').innerHTML=html;
   document.getElementById('modal-overlay').classList.add('on');
 }
+
 function closeModal(){document.getElementById('modal-overlay').classList.remove('on');}
 function handleOverlayClick(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
 
