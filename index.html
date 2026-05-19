@@ -240,12 +240,20 @@ async function loadData(){
 }
 
 function parseCSV(text){
-  const lines=text.replace(/\r/g,'').split('\n');
+  // Parse the entire CSV text at once, character by character.
+  // This correctly handles quoted cells that contain commas, newlines, or escaped quotes.
+  const rows=parseCSVRows(text.replace(/\r\n/g,'\n').replace(/\r/g,'\n'));
+
+  // Find the header row (contains "organization" or "organization name")
   let dataStart=0;
-  for(let i=0;i<Math.min(lines.length,6);i++){const low=lines[i].toLowerCase();if(low.includes('organization name')||low.includes('organization')){dataStart=i+1;break;}}
+  for(let i=0;i<Math.min(rows.length,6);i++){
+    const low=(rows[i][0]||'').toLowerCase();
+    if(low.includes('organization')){dataStart=i+1;break;}
+  }
+
   const events=[];
-  for(let i=dataStart;i<lines.length;i++){
-    const row=splitLine(lines[i]);
+  for(let i=dataStart;i<rows.length;i++){
+    const row=rows[i];
     if(!row||row.length<4)continue;
     const org=(row[C.org]||'').trim();
     if(!org||org.toLowerCase().includes('organization'))continue;
@@ -268,8 +276,33 @@ function parseCSV(text){
   return events;
 }
 
+// Robust CSV parser: handles quoted fields with embedded commas, newlines, and escaped quotes ("")
+function parseCSVRows(text){
+  const rows=[];
+  let row=[],cur='',inQ=false,i=0;
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){
+        if(text[i+1]==='"'){cur+='"';i+=2;}  // escaped quote
+        else{inQ=false;i++;}                  // closing quote
+      } else {
+        cur+=c;i++;                           // anything inside quotes, including newlines
+      }
+    } else {
+      if(c==='"'){inQ=true;i++;}
+      else if(c===','){row.push(cur.trim());cur='';i++;}
+      else if(c==='\n'){row.push(cur.trim());rows.push(row);row=[];cur='';i++;}
+      else{cur+=c;i++;}
+    }
+  }
+  // Push final cell and row
+  if(cur||row.length)row.push(cur.trim());
+  if(row.length)rows.push(row);
+  return rows;
+}
+
 function clean(s){return s?s.trim().replace(/^"|"$/g,'').trim():'';}
-function splitLine(line){const cells=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else{inQ=!inQ;}}else if(c===','&&!inQ){cells.push(cur);cur='';}else{cur+=c;}}cells.push(cur);return cells.map(s=>s.trim().replace(/^"|"$/g,''));}
 function normDate(s){s=s.trim();const mdy=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(mdy)return`${mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;return'';}
 function dOff(s){return Math.max(0,(new Date(s+'T00:00:00')-YS)/86400000)}
 function pct(d){return(d/TD*100).toFixed(3)+'%'}
